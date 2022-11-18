@@ -3,7 +3,7 @@
 import RPi.GPIO as GPIO
 import serial
 import time
-from . import util
+from util import *
 
 class sx126x:
 

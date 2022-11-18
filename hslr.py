@@ -94,7 +94,7 @@ class HSLR:
         self.RBVACK = 6
         
         # To checkt BVACK packet's index
-        self.BVACK_INDEX = [1, 2, 3, 4, 5]
+        self.BVACK_INDEX = []
         
         # HEADER INDEX
         self.DEST_EUI_INDEX = 0

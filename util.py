@@ -1,3 +1,4 @@
+
 def removeGarbageInJson(payload):
     
     # to remove the garbage value

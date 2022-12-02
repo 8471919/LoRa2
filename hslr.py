@@ -558,7 +558,7 @@ class HSLR:
         
         # check DEST EUI
         destEUI = packet[self.DEST_EUI_INDEX:self.SEQUENCE_NUMBER_INDEX]
-        if destEUI != self.DEST_MAC:
+        if destEUI != self.SOURCE_MAC:
             print("destEUI is incorrect")
             return []
         

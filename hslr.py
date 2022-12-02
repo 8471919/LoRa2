@@ -319,7 +319,7 @@ class HSLR:
         GPIO.output(self.M0,GPIO.LOW)
         time.sleep(0.1)
         
-        maxSequenceNumber = int((imageBytes - 1) / self.PAYLOAD_SIZE) + 1
+        maxSequenceNumber = int((len(imageBytes) - 1) / self.PAYLOAD_SIZE) + 1
 
         # send a syn packet with imageSize, width and height
         self.transmitSyn(imageSize=5000, width=640, height=480)
@@ -365,6 +365,20 @@ class HSLR:
             if maxSequenceNumber <= self.sequenceNumber:
                 self.transmitFin()
             
+    def receiveImage(self):
+        while True:
+            # get Syn Packet
+            self.receiveSynPacket()
+            
+            # send SYN-ACK Packet
+            self.transmitSYNACK()
+            
+            # get Data Packets and transmit Bvack Packet
+            self.receiveDataPacket()
+            
+        return imageBytes
+            
+        
     def receiveSynPacket(self):
         while True:
             if self.ser.inWaiting() > 0:
@@ -416,6 +430,8 @@ class HSLR:
                 # if BVACK_INDEX is full, send BVACK Packet
                 if len(self.BVACK_INDEX) >= 10:
                     self.transmitBvack(self.BVACK_INDEX)
+                    
+        return imageBytes
                     
     # add header to payload    
     def addHeader(self, sequenceNum, flag, payload=bytearray(0)):
@@ -612,12 +628,12 @@ class HSLR:
         
         imageSize = imageSize.to_bytes(4, 'big')
         width = width.to_bytes(2, 'big')
-        height = width.to_bytes(2, 'big')
+        height = height.to_bytes(2, 'big')
         
         payload = imageSize + width + height
         
         # add Header with SYN FLAG
-        packet = self.addHeader(sequenceNumber=0, flag=self.SYN, payload=payload)
+        packet = self.addHeader(sequenceNum=0, flag=self.SYN, payload=payload)
         
         # sequenceNumber + 1
         self.sequenceNumber+=1

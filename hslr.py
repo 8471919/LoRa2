@@ -691,7 +691,7 @@ class HSLR:
         # time.sleep(0.1)
         
         # add Header with ACK FLAG
-        packet = self.addHeader(sequenceNumber=0, flag=self.ACK)
+        packet = self.addHeader(sequenceNum=0, flag=self.ACK)
     
         # send packet
         self.ser.write(packet)
@@ -704,7 +704,7 @@ class HSLR:
         # time.sleep(0.1)
         
         # add Header with ACK FLAG
-        packet = self.addHeader(sequenceNumber=0, flag=self.BVACK, payload=payload)
+        packet = self.addHeader(sequenceNum=0, flag=self.BVACK, payload=payload)
     
         # sequenceNumber + 1
         # self.sequenceNumber+=1
@@ -720,7 +720,7 @@ class HSLR:
         # time.sleep(0.1)
         
         # add Header with ACK FLAG
-        packet = self.addHeader(sequenceNumber=0, flag=self.FIN)
+        packet = self.addHeader(sequenceNum=0, flag=self.FIN)
         
         # send packet
         self.ser.write(packet)

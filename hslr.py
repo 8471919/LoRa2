@@ -365,6 +365,22 @@ class HSLR:
             if maxSequenceNumber <= self.sequenceNumber:
                 self.transmitFin()
             
+    def receiveSynPacket(self):
+        while True:
+            if self.ser.inWaiting() > 0:
+                time.sleep(0.5)
+                r_buff = self.ser.read(self.ser.inWaiting())
+                packet = r_buff[:-1]
+                
+                payload = self.parse(packet)
+                
+                if self.FLAG == self.SYN:
+                    self.imageSize = payload[:self.IMAGE_SIZE_INDEX_END]
+                    self.imageWidth = payload[self.IMAGE_SIZE_INDEX_END:self.IMAGE_WIDTH_INDEX_END]
+                    self.imageHeight = payload[self.IMAGE_WIDTH_INDEX_END:self.IMAGE_HEIGHT_INDEX_END]
+                    break
+                
+            
     def receiveBvackPacket(self):
         while True:
             if self.ser.inWaiting() > 0:

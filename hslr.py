@@ -96,7 +96,7 @@ class HSLR:
         self.FLAG = 0
         
         # To checkt BVACK packet's index
-        self.BVACK_INDEX = bytearray(10)
+        self.BVACK_INDEX = bytearray(0)
         self.BVACK_LENGTH = 5
         self.BVACK_ELEMENT_SIZE = 2
         
@@ -324,6 +324,7 @@ class HSLR:
         # send a syn packet with imageSize, width and height
         self.transmitSyn(imageSize=5000, width=640, height=480)
         
+        
         bvackArray = []
         # send image bytes (DATA Packets)
         while self.FLAG != self.FIN:
@@ -388,6 +389,9 @@ class HSLR:
                 
                 payload = self.parse(packet)
                 
+                print("Receive SYN packet")
+                print()
+                
                 if self.FLAG == self.SYN:
                     self.imageSize = payload[:self.IMAGE_SIZE_INDEX_END]
                     self.imageWidth = payload[self.IMAGE_SIZE_INDEX_END:self.IMAGE_WIDTH_INDEX_END]
@@ -429,7 +433,19 @@ class HSLR:
                 
                 # if BVACK_INDEX is full, send BVACK Packet
                 if len(self.BVACK_INDEX) >= 10:
+                    print("bvack index is full")
+                    
+                    first = self.BVACK_INDEX[:self.BVACK_ELEMENT_SIZE]
+                    second = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE:self.BVACK_ELEMENT_SIZE*2]
+                    third = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*2:self.BVACK_ELEMENT_SIZE*3]
+                    forth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*3:self.BVACK_ELEMENT_SIZE*4]
+                    
+                    print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
+                    
+                    
                     self.transmitBvack(self.BVACK_INDEX)
+                    self.BVACK_INDEX = bytearray()
+                    
                     
         return imageBytes
                     
@@ -456,6 +472,26 @@ class HSLR:
         
         # set checksum into header
         header[self.CHECKSUM_INDEX:self.HEADER_SIZE] = checkSum
+        
+        t = int.from_bytes(flag, 'big')
+        flagName = "TEMP"
+        if t == 1:
+            flagName = "SYN"
+        elif t == 2:
+            flagName = "SYNACK"
+        elif t == 3:
+            flagName = "ACK"
+        elif t == 4:
+            flagName = "DATA"
+        elif t == 5:
+            flagName = "BVACK"
+        elif t == 6:
+            flagName = "FIN"
+        
+        # print("----- here is addHeader -----")
+        # print("|         dest eui         | sequence Num |  FLAG  | Paylaod size |")
+        # print("| "+ str(self.DEST_MAC) +" |      "+str(int.from_bytes(sequenceNum, 'big'))+"       |"+" {:<7}".format(flagName)+"|      "+str(len(payload))+"      |")
+        
         
         # print("header 0~9 : " + str(header[0:10]))
         # print(len(payload))
@@ -563,9 +599,7 @@ class HSLR:
             return []
         
         # check sequence number
-        # put sequence number into the BVACK_INDEX
         sequenceNumber = int.from_bytes(packet[self.SEQUENCE_NUMBER_INDEX:self.FLAG_INDEX], 'big')
-        self.BVACK_INDEX.append(sequenceNumber)
         
         # check payload size
         payloadSize = int.from_bytes(packet[self.PAYLOAD_SIZE_INDEX:self.CHECKSUM_INDEX], 'big')
@@ -579,42 +613,30 @@ class HSLR:
         flag = int.from_bytes(packet[self.FLAG_INDEX:self.PAYLOAD_SIZE_INDEX], 'big')
         
         self.FLAG = flag
+
+        # if flag is DATA, put sequence number into the BVACK_INDEX
+        if flag == self.DATA:
+            self.BVACK_INDEX += packet[self.SEQUENCE_NUMBER_INDEX:self.FLAG_INDEX]
         
-        # if flag == self.DATA:
-        #     self.FLAG = self.DATA
-        # elif flag == self.BVACK:
-        #     self.FALG = self.BVACK
-        #     self.BVACK_INDEX = []
-            
-        #     # check BVACK packet (0 is ignored)
-        #     for i in range(0, self.BVACK_LENGTH, self.BVACK_ELEMENT_SIZE):
-        #         element = int.from_bytes(payload[i:i+self.BVACK_ELEMENT_SIZE], 'big')
-        #         self.BVACK_INDEX.append(element)
-            
-        #     # snedData
-        # elif flag == self.SYN:
-        #     self.FALG = self.SYN
-        #     # save the image size and width, height
-        #     self.imageSize = payload[:self.IMAGE_SIZE_INDEX_END]
-        #     self.imageWidth = payload[self.IMAGE_SIZE_INDEX_END:self.IMAGE_WIDTH_INDEX_END]
-        #     self.imageHeight = payload[self.IMAGE_WIDTH_INDEX_END:self.IMAGE_HEIGHT_INDEX_END]
-        # elif flag == self.ACK:
-        #     if self.FLAG == self.SYN:
-        #         # send Data
-        #     elif self.FLAG = self.FIN:
-        #         # send ACK
-            
-        #     self.FLAG = self.ACK
-
-        # elif flag == self.FIN:
-        #     self.FALG = self.FIN
-            
-        # # remove RBVACK and ... just resend BVACK
-
-        # else:
-        #     self.FLAG = 0
-        #     print("flag is incorrect")
-        #     return []
+        flagName = "TEMP"
+        if flag == 1:
+            flagName = "SYN"
+        elif flag == 2:
+            flagName = "SYNACK"
+        elif flag == 3:
+            flagName = "ACK"
+        elif flag == 4:
+            flagName = "DATA"
+        elif flag == 5:
+            flagName = "BVACK"
+        elif flag == 6:
+            flagName = "FIN"
+        
+        print("----- here is parse -----")
+        print("|         dest eui         | sequence Num |  FLAG  | Paylaod size |")
+        print("| "  + str(destEUI) +    " |      "+str(sequenceNumber)+"       |"+" {:<7}".format(flagName)+"|      "+str(len(payload))+"      |")
+        print("BVACK List : " +str(bytes(self.BVACK_INDEX)))
+        
         
         return payload
 
@@ -667,6 +689,8 @@ class HSLR:
         
         # send packet
         self.ser.write(packet)
+        
+        print("SYN-ACK packet sent")
         
         time.sleep(0.5)
         

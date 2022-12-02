@@ -31,10 +31,6 @@ class LoRa:
         
     def getImage(self):
         
-        while True:
-            imageBytes = self.node.receiveImage()
-            
-            if imageBytes != None:
-                break
+        imageBytes = self.node.receiveImage()
         
         return imageBytes

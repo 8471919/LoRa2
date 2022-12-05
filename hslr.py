@@ -95,10 +95,14 @@ class HSLR:
         
         self.FLAG = 0
         
-        # To checkt BVACK packet's index
+        # To check BVACK packet's index
         self.BVACK_INDEX = bytearray(0)
         self.BVACK_LENGTH = 5
         self.BVACK_ELEMENT_SIZE = 2
+        
+        # To manage BVACK packet
+        self.expectedResult = [1, 2, 3, 4, 5]
+        self.top = self.expectedResult[-1]
         
         # HEADER INDEX
         self.DEST_EUI_INDEX = 0
@@ -427,7 +431,12 @@ class HSLR:
     def receiveDataPacket(self):
         imageBytes = bytearray()
         
+        # check current time for sending BVACK packet
+        startTime = time.time()
+        
         while True:
+            endTime = time.time()
+            
             if self.ser.inWaiting() > 0:
                 time.sleep(0.5)
                 r_buff = self.ser.read(self.ser.inWaiting())
@@ -435,33 +444,45 @@ class HSLR:
                 
                 # check the packet and get payload
                 payload = self.parse(packet=packet)
+                                
+                # if BVACK_INDEX is full, send BVACK Packet. 
+                # or if DATA packet sending is finished, send BVACK packet.
+                # or timeout(15s)
+                if (len(self.BVACK_INDEX) >= self.BVACK_ELEMENT_SIZE*self.BVACK_LENGTH) \
+                    or (self.maxSequenceNumber == self.sequenceNumber) \
+                        or ((endTime - startTime) >= 15):
+                    print("bvack sending...")
+                    
+                    first = self.BVACK_INDEX[:self.BVACK_ELEMENT_SIZE]
+                    second = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE:self.BVACK_ELEMENT_SIZE*2]
+                    third = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*2:self.BVACK_ELEMENT_SIZE*3]
+                    forth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*3:self.BVACK_ELEMENT_SIZE*4]
+                    
+                    print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
+                    
+                    self.transmitBvack(self.BVACK_INDEX)
+                    
+                    # initialize variables for loop
+                    self.BVACK_INDEX = bytearray()
+                    startTime = time.time()
                 
-                # if BVACK_INDEX is full, send BVACK Packet
-                if len(self.BVACK_INDEX) >= 10:
-                    print("bvack index is full")
-                    
-                    first = self.BVACK_INDEX[:self.BVACK_ELEMENT_SIZE]
-                    second = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE:self.BVACK_ELEMENT_SIZE*2]
-                    third = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*2:self.BVACK_ELEMENT_SIZE*3]
-                    forth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*3:self.BVACK_ELEMENT_SIZE*4]
-                    
-                    print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
-                    
-                    self.transmitBvack(self.BVACK_INDEX)
-                    self.BVACK_INDEX = bytearray()
-                    
-                # or if DATA packet sending is finished, send BVACK packet
-                if self.maxSequenceNumber == self.sequenceNumber:
-            
-                    first = self.BVACK_INDEX[:self.BVACK_ELEMENT_SIZE]
-                    second = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE:self.BVACK_ELEMENT_SIZE*2]
-                    third = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*2:self.BVACK_ELEMENT_SIZE*3]
-                    forth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*3:self.BVACK_ELEMENT_SIZE*4]
-                    
-                    print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
-                    
-                    self.transmitBvack(self.BVACK_INDEX)
-                    self.BVACK_INDEX = bytearray()
+            # if time interval is over the 15, send BVACK packet.
+            if (endTime - startTime) >= 15:
+                print("bvack sending...")
+                
+                first = self.BVACK_INDEX[:self.BVACK_ELEMENT_SIZE]
+                second = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE:self.BVACK_ELEMENT_SIZE*2]
+                third = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*2:self.BVACK_ELEMENT_SIZE*3]
+                forth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*3:self.BVACK_ELEMENT_SIZE*4]
+                
+                print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
+                
+                self.transmitBvack(self.BVACK_INDEX)
+                
+                # initialize variables for loop
+                self.BVACK_INDEX = bytearray()
+                startTime = time.time()                
+                
                     
         return imageBytes
                     
@@ -616,6 +637,10 @@ class HSLR:
         
         # check sequence number
         sequenceNumber = int.from_bytes(packet[self.SEQUENCE_NUMBER_INDEX:self.FLAG_INDEX], 'big')
+        self.sequenceNumber = sequenceNumber
+
+        if sequenceNumber in self.expectedResult:
+            self.expectedResult.remove(sequenceNumber)
         
         # check payload size
         payloadSize = int.from_bytes(packet[self.PAYLOAD_SIZE_INDEX:self.CHECKSUM_INDEX], 'big')
@@ -751,6 +776,13 @@ class HSLR:
         
         # send packet
         self.ser.write(packet)        
+        
+        i = 0
+        while len(self.expectedResult) < 5:
+            self.expectedResult.append(self.top + i)
+            i+=1
+        
+        self.top = self.expectedResult[-1]
         
         time.sleep(0.5)
         

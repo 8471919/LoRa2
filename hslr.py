@@ -447,10 +447,21 @@ class HSLR:
                     
                     print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
                     
-                    
                     self.transmitBvack(self.BVACK_INDEX)
                     self.BVACK_INDEX = bytearray()
                     
+                # or if DATA packet sending is finished, send BVACK packet
+                if self.maxSequenceNumber == self.sequenceNumber:
+            
+                    first = self.BVACK_INDEX[:self.BVACK_ELEMENT_SIZE]
+                    second = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE:self.BVACK_ELEMENT_SIZE*2]
+                    third = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*2:self.BVACK_ELEMENT_SIZE*3]
+                    forth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*3:self.BVACK_ELEMENT_SIZE*4]
+                    
+                    print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
+                    
+                    self.transmitBvack(self.BVACK_INDEX)
+                    self.BVACK_INDEX = bytearray()
                     
         return imageBytes
                     

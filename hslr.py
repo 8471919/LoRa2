@@ -386,6 +386,9 @@ class HSLR:
             # get Data Packets and transmit Bvack Packet
             self.receiveDataPacket()
             
+            # get Fin Packet and send Ack and Fin packet
+            self.fourHandShake()
+            
         return imageBytes
             
         
@@ -453,12 +456,18 @@ class HSLR:
                         or ((endTime - startTime) >= 15):
                     print("bvack sending...")
                     
+                    self.BVACK_INDEX = bytearray(0)
+                    
+                    for i in range(0, len(self.expectedResult)):
+                        self.BVACK_INDEX += self.expectedResult[i].to_bytes(self.BVACK_ELEMENT_SIZE, 'big')
+                    
                     first = self.BVACK_INDEX[:self.BVACK_ELEMENT_SIZE]
                     second = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE:self.BVACK_ELEMENT_SIZE*2]
                     third = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*2:self.BVACK_ELEMENT_SIZE*3]
                     forth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*3:self.BVACK_ELEMENT_SIZE*4]
+                    fifth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*4:self.BVACK_ELEMENT_SIZE*5]
                     
-                    print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
+                    print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+", "+str(fifth)+" ]")
                     
                     self.transmitBvack(self.BVACK_INDEX)
                     
@@ -474,8 +483,9 @@ class HSLR:
                 second = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE:self.BVACK_ELEMENT_SIZE*2]
                 third = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*2:self.BVACK_ELEMENT_SIZE*3]
                 forth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*3:self.BVACK_ELEMENT_SIZE*4]
+                fifth = self.BVACK_INDEX[self.BVACK_ELEMENT_SIZE*4:self.BVACK_ELEMENT_SIZE*5]
                 
-                print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+" ]")
+                print("["+str(first)+", "+str(second)+", "+str(third)+", "+str(forth)+", "+str(fifth)+" ]")
                 
                 self.transmitBvack(self.BVACK_INDEX)
                 
@@ -483,9 +493,51 @@ class HSLR:
                 self.BVACK_INDEX = bytearray()
                 startTime = time.time()                
                 
+            # if getting DATA packet is finished, break the loop
+            if self.maxSequenceNumber == self.sequenceNumber:
+                print("break the getting Data packet loop")
+                break
                     
         return imageBytes
                     
+    def fourHandShake(self):
+        while True:
+            if self.ser.inWaiting() > 0:
+                time.sleep(0.5)
+                r_buff = self.ser.read(self.ser.inWaiting())
+                packet = r_buff[:-1]
+                
+                # check the packet and get payload
+                payload = self.parse(packet=packet)
+                                
+                # if not get FIN FLAG, exit
+                if self.FLAG != self.FIN:
+                    print("can't get FIN Packet")
+                    exit()
+                
+                # send Ack packet and Fin packet
+                self.transmitAck()
+                self.transmitFin()
+                break
+        
+        # receive Ack packet
+        while True:
+            if self.ser.inWaiting() > 0:
+                time.sleep(0.5)
+                r_buff = self.ser.read(self.ser.inWaiting())
+                packet = r_buff[:-1]
+                
+                # check the packet and get payload
+                payload = self.parse(packet=packet)
+                
+                if self.FLAG != self.ACK:
+                    print("can't get ACK Packet")
+                    exit()
+                
+                break
+
+        self.expectedResult = [1, 2, 3, 4, 5]
+
     # add header to payload    
     def addHeader(self, sequenceNum, flag, payload=bytearray(0)):
         if len(payload) > self.PAYLOAD_SIZE:
@@ -777,6 +829,7 @@ class HSLR:
         # send packet
         self.ser.write(packet)        
         
+        # calculate the expected result again
         i = 1
         while len(self.expectedResult) < 5:
             self.expectedResult.append(self.top + i)

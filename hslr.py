@@ -376,7 +376,7 @@ class HSLR:
             # get Syn Packet
             self.receiveSynPacket()
             
-            self.maxSequenceNumber = int((len(self.imageSize) - 1) / self.PAYLOAD_SIZE) + 1
+            self.maxSequenceNumber = int((self.imageSize - 1) / self.PAYLOAD_SIZE) + 1
             print("----- max sequence number : " + str(self.maxSequenceNumber))
 
             
@@ -402,9 +402,9 @@ class HSLR:
                 print()
                 
                 if self.FLAG == self.SYN:
-                    self.imageSize = payload[:self.IMAGE_SIZE_INDEX_END]
-                    self.imageWidth = payload[self.IMAGE_SIZE_INDEX_END:self.IMAGE_WIDTH_INDEX_END]
-                    self.imageHeight = payload[self.IMAGE_WIDTH_INDEX_END:self.IMAGE_HEIGHT_INDEX_END]
+                    self.imageSize = int.from_bytes(payload[:self.IMAGE_SIZE_INDEX_END], 'big')
+                    self.imageWidth = int.from_bytes(payload[self.IMAGE_SIZE_INDEX_END:self.IMAGE_WIDTH_INDEX_END], 'big')
+                    self.imageHeight = int.from_bytes(payload[self.IMAGE_WIDTH_INDEX_END:self.IMAGE_HEIGHT_INDEX_END], 'big')
                     break
                 
             
@@ -654,7 +654,7 @@ class HSLR:
         flag = int.from_bytes(packet[self.FLAG_INDEX:self.PAYLOAD_SIZE_INDEX], 'big')
         
         self.FLAG = flag
-
+        
         # if flag is DATA, put sequence number into the BVACK_INDEX
         if flag == self.DATA:
             self.BVACK_INDEX += packet[self.SEQUENCE_NUMBER_INDEX:self.FLAG_INDEX]
@@ -676,7 +676,7 @@ class HSLR:
         print("----- here is parse -----")
         print("|         dest eui         | sequence Num |  FLAG  | Paylaod size |")
         print("| "  + str(destEUI) +    " |      "+str(sequenceNumber)+"       |"+" {:<7}".format(flagName)+"|      "+str(len(payload))+"      |")
-        print("BVACK List : " +str(bytes(self.BVACK_INDEX)))
+        print("Expected Result List : " +str(self.expectedResult))
         
         
         return payload
@@ -777,7 +777,7 @@ class HSLR:
         # send packet
         self.ser.write(packet)        
         
-        i = 0
+        i = 1
         while len(self.expectedResult) < 5:
             self.expectedResult.append(self.top + i)
             i+=1

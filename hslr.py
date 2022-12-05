@@ -117,6 +117,7 @@ class HSLR:
         
         # To manage Sequence fluently
         self.sequenceNumber = 0
+        self.maxSequenceNumber = 0
         
         # Initial the GPIO for M0 and M1 Pin
         GPIO.setmode(GPIO.BCM)
@@ -370,6 +371,10 @@ class HSLR:
         while True:
             # get Syn Packet
             self.receiveSynPacket()
+            
+            self.maxSequenceNumber = int((len(self.imageSize) - 1) / self.PAYLOAD_SIZE) + 1
+            print("----- max sequence number : " + str(self.maxSequenceNumber))
+
             
             # send SYN-ACK Packet
             self.transmitSYNACK()

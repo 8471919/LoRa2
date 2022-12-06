@@ -447,6 +447,9 @@ class HSLR:
                 
                 # check the packet and get payload
                 payload = self.parse(packet=packet)
+                
+                # take payload into imageBytes
+                imageBytes[(self.sequenceNumber-1)*self.PAYLOAD_SIZE:self.sequenceNumber*self.PAYLOAD_SIZE] = payload
                                 
                 # if BVACK_INDEX is full, send BVACK Packet. 
                 # or if DATA packet sending is finished, send BVACK packet.
